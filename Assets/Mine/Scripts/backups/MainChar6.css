@@ -1,0 +1,242 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Threading;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class MainChar : MonoBehaviour
+{
+    //General
+    public Animator anim;
+    public CharacterController con;
+    public Rigidbody rb;
+
+    //Minor states and variables
+    public bool right = true;
+    public float gravitySpeed = 0.2f;
+    public float moveSpeed = 0.1f;
+    public float jumpSpeed = 0.1f;
+    public float jumpSteerSpeed = 0.01f;
+
+    private float initHeight;
+    private float initCenterY;
+
+    //Physics
+    public Vector3 velocity = new Vector3();
+
+    //AudioClips
+    public AudioClip twoah;
+
+    //AnimationClips, needed for timings
+    public Dictionary<string, AnimationClip> clips =
+    new Dictionary<string, AnimationClip>();
+
+    //STATES
+    private PlayerBaseState currentState;
+    public readonly PlayerIdleState stateIdle = new PlayerIdleState();
+    public readonly PlayerRunningState stateRunning = new PlayerRunningState();
+    public readonly PlayerJumpingState stateJumping = new PlayerJumpingState();
+    public readonly PlayerSomersaultState stateSomersault = new PlayerSomersaultState();
+    public readonly PlayerRollingState stateRolling = new PlayerRollingState();
+    public readonly PlayerBlockState stateBlocking = new PlayerBlockState();
+    public readonly PlayerFlyingSwallowState stateFlyingSwallow = new PlayerFlyingSwallowState();
+
+    //Debug
+    public Text info;
+
+    void Start()
+    {
+        anim = GetComponent<Animator>();
+        con = GetComponent<CharacterController>();
+        rb = GetComponent<Rigidbody>();
+
+        //////////////populate clips
+        foreach (AnimationClip ac in anim.runtimeAnimatorController.animationClips)
+        {
+            clips.Add(ac.name.ToLower(), ac);
+        }
+        //////////////
+
+
+        initHeight = con.height;
+        initCenterY = con.center.y;
+
+        TransitionToState(stateIdle);
+
+    }
+
+    void Update()
+    {
+        currentState.Update(this);
+        isFacingWall();
+        //updatePhysics();
+    }
+
+    public void updatePhysics()
+    {
+        move(velocity);
+    }
+
+    private Vector3 getDirectionVector()
+    {
+        if (right)
+        {
+            return Vector3.forward;
+        }
+        else
+        {
+            return Vector3.back;
+        }
+    }
+
+    public void moveFoward(float speed)
+    {
+        con.Move(moveFowardVector(speed));
+    }
+
+    public Vector3 moveFowardVector(float speed)
+    {
+        return getDirectionVector() * speed;
+    }
+
+    public void gravity()
+    {
+        if (!isGrounded())
+        {
+            con.Move(Vector3.down * gravitySpeed);
+        }
+    }
+
+    public void fall()
+    {
+        if (!isGrounded())
+        {
+            velocity.y -= gravitySpeed * Time.deltaTime;
+
+            con.Move(velocity);
+        }
+    }
+
+    public Vector3 fallVector()
+    {
+        Vector3 v = velocity;
+        if (!isGrounded())
+        {
+            velocity.y -= gravitySpeed * Time.deltaTime;
+
+            v = velocity;
+        }
+
+        return v;
+    }
+
+
+    public void move(Vector3 v)
+    {
+        con.Move(v);
+    }
+
+    public bool isGrounded()
+    {
+        return con.isGrounded;
+    }
+
+    public void shrink()
+    {
+        //con.height = 1.29f;
+        //con.center = new Vector3(con.center.x, 1f, con.center.z);
+    }
+
+    public void unshrink()
+    {
+        //con.height = initHeight;
+        //con.center = new Vector3(con.center.x, initCenterY, con.center.z);
+    }
+
+    public bool isFacingWall()
+    {
+        bool facingWall = false;
+
+        float colliderBounds = GetComponent<CharacterController>().bounds.extents.y;
+        Debug.DrawRay(transform.position, Vector3.forward, Color.red, colliderBounds * 0.01f);
+
+        facingWall = Physics.Raycast(transform.position, Vector3.forward, colliderBounds * 0.1f);
+
+        return facingWall;
+    }
+
+
+    public void updateRotation()
+    {
+        if (SimpInput.getIfHeld(new string[] { "l" }))
+        {
+            right = false;
+        }
+
+        if (SimpInput.getIfHeld(new string[] { "r" }))
+        {
+            right = true;
+        }
+        setRotation();
+    }
+
+    private void setRotation()
+    {
+        if (right)
+        {
+            this.transform.rotation = new Quaternion(0, 0, 0, 0);
+        }
+        else
+        {
+            this.transform.rotation = new Quaternion(0, 180, 0, 0);
+        }
+    }
+
+    public void TransitionToState(PlayerBaseState state)
+    {
+
+        /*if (currentState != null && currentState.GetType() != state.GetType())
+        {
+            setInfoText("State: " + state.GetType());
+            print(state.GetType());
+        }*/
+
+        currentState = state;
+        currentState.EnterState(this);
+
+
+
+    }
+
+    public void OnCollisionEnter(Collision col)
+    {
+        currentState.OnCollisionEnter(this);
+    }
+
+
+    public void prrint(string message)
+    {
+        print(message);
+    }
+
+    public void setInfoText(string message)
+    {
+        info.text = message;
+    }
+
+    public bool isAnimFree(string animName)
+    {
+        return !anim.GetCurrentAnimatorStateInfo(0).IsName(animName);
+    }
+
+    public void playClip(AudioClip clip)
+    {
+        if (clip != null)
+            GetComponent<AudioSource>().PlayOneShot(clip);
+    }
+}
+
+/*
+ 
+
+ */

@@ -1,0 +1,692 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using System.Threading;
+using UnityEngine;
+
+public class MainChar : MonoBehaviour
+{
+
+    public Animator anim;
+    public CharacterController con;
+    public Rigidbody rb;
+
+
+    Act currentAct;
+
+    //Acts
+    //Act walkLeft = new Act("walk", new string[] { "l" });
+    //Act walkRight = new Act("walk", new string[] { "r" });
+
+    Act runLeft = new Act("run", new string[] { "l" });
+    Act runRight = new Act("run", new string[] { "r" });
+
+    Act somersaultR = new Act("somersault", new string[] { "x", "r" });
+    //Act somersaultR = new Act("somersault", new string[] { "x" });
+    Act somersaultL = new Act("somersault", new string[] { "x", "l" });
+    //Act somersaultL = new Act("somersault", new string[] { "x" });
+
+    Act jump = new Act("jump", new string[] { "x" });
+
+    Act roll = new Act("roll");
+
+    Act fk = new Act("fs");
+
+    public static Act idle = new Act("idle");
+
+    public bool right = true;
+    public bool air = false;
+
+    public bool lockedInAnimation = false;
+
+    public enum PhysicalStates { grounded, airborne, stagger }
+    public PhysicalStates physicalState;
+
+    public enum ActionStates { none, idle, running, jumping, somersault, wallrunning }
+    public ActionStates actionState;
+
+
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        anim = GetComponent<Animator>();
+        con = GetComponent<CharacterController>();
+        rb = GetComponent<Rigidbody>();
+
+        idle.cancellable = true;
+
+        idle.allowedActs.Add(runLeft);
+        idle.allowedActs.Add(runRight);
+        idle.allowedActs.Add(somersaultL);
+        idle.allowedActs.Add(somersaultR);
+
+        runLeft.allowedActs.Add(somersaultL);
+        runLeft.allowedActs.Add(somersaultR);
+
+        runRight.allowedActs.Add(somersaultL);
+        runRight.allowedActs.Add(somersaultR);
+
+        somersaultR.allowedActs.Add(runRight);
+        somersaultR.allowedActs.Add(runLeft);
+
+        somersaultL.allowedActs.Add(runRight);
+        somersaultL.allowedActs.Add(runLeft);
+
+
+        runLeft.moveSpeed = 0.88f;
+        runLeft.moveSpeed = 0.88f;
+        somersaultL.moveSpeed = 1f;
+        somersaultR.moveSpeed = 1f;
+
+
+
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+
+        //main();
+
+        if (!lockedInAnimation)
+        {
+            updateRotation();
+
+            bool moving = SimpInput.getIfHeld(new string[] { "r" }) || SimpInput.getIfHeld(new string[] { "l" });
+            bool blocked = SimpInput.getIfPressed(new string[] { "l1" });
+            bool blocking = SimpInput.getIfHeld(new string[] { "l1" });
+            //bool jumped = SimpInput.getIfBufferedInput(somersaultL.input);
+
+
+
+            //movement
+            if (moving)
+            {
+                if (blocked)
+                {
+                    //roll
+                    if (roll.isFree(anim) && !air)
+                        //anim.SetTrigger("roll");
+                        play("roll");
+                    moveFoward(10);
+                }
+
+                if (somersaultL.isFree(anim))
+                {
+                    air = false;
+                    if (SimpInput.getIfPressed(new string[] { "x" }) && !air)
+                    //if (jumped && !air)
+                    {
+                        //anim.SetTrigger("somersault");
+                        play("somersault");
+                        air = true;
+
+                        //(new Thread(ExecuteInForeground)).Start();
+
+                        //StartCoroutine("lockControls", 10f / 60f);
+                        //anim.CrossFade(somersaultL.animName, 0.05f, 0, 0);
+                        //somersaultL.crossFadeLoop(anim);
+                    }
+                    else
+                    {
+                        anim.SetBool("run", true);
+                        moveFoward(10);
+                        //anim.CrossFade(runRight.animName, 0.05f, 0, 0);
+                        //runRight.crossFadeLoop(anim);
+                    }
+                }
+
+            }
+            else
+            {
+
+                if (blocking)
+                {
+                    //block
+                }
+
+                if (jump.isFree(anim))
+                {
+                    air = false;
+                    if (SimpInput.getIfPressed(new string[] { "x" }))
+                    //if (jumped)
+                    {
+                        //anim.SetTrigger("jump");
+                        play("jump");
+                        air = true;
+
+                        StartCoroutine("lockControls", 25f / 60f);
+                        //anim.CrossFade(somersaultL.animName, 0.05f, 0, 0);
+                        //somersaultL.crossFadeLoop(anim);
+                    }
+                    else
+                    {
+                        //anim.SetBool("run", true);
+                        //moveFoward(10);
+                        //anim.CrossFade(runRight.animName, 0.05f, 0, 0);
+                        //runRight.crossFadeLoop(anim);
+                    }
+                }
+                anim.SetBool("run", false);
+
+            }
+
+        }
+
+        //ATTACKING
+
+        if (SimpInput.getIfPressed(new string[] { "t" }))
+        {
+
+            if (!somersaultL.isFree(anim)) //fs
+            {
+                //anim.SetTrigger("fk");
+                play("fk");
+                moveFoward(10);
+            }
+            else if (!jump.isFree(anim)) //heavy air 1
+            {
+
+            }
+
+
+
+
+        }
+
+
+        //phsysics
+        if (!somersaultL.isFree(anim))
+        {
+            moveFoward(10);
+            print("somersault");
+        }
+
+        if (!fk.isFree(anim))
+        {
+            moveFoward(15);
+        }
+
+    }
+
+    private void ExecuteInForeground()
+    {
+        float delta;
+        do
+        {
+            print("hey");
+            moveFoward(10);
+            delta = +Time.deltaTime;
+        } while (delta < 2.5);
+    }
+
+
+
+
+
+
+    void moveFoward(float speed)
+    {
+
+        if (right)
+        {
+            //con.SimpleMove(Vector3.forward * speed);
+            //rb.AddForce(Vector3.forward * speed / 50, ForceMode.VelocityChange);
+            rb.velocity = (Vector3.forward * speed);
+        }
+        else
+        {
+            //con.SimpleMove(Vector3.back * speed);
+            //rb.AddForce(Vector3.back * speed / 50, ForceMode.VelocityChange);
+            rb.velocity = (Vector3.back * speed);
+        }
+    }
+
+    void main()
+    {
+        updateRotation();
+
+
+
+        if (currentAct == null)
+        {
+            currentAct = idle;
+            //currentAct.setTrigger(anim);
+        }
+        else
+        {
+            //currentAct.crossFadeLoop(anim);
+            //currentAct.crossFadeLoop(anim);
+            //currentAct = currentAct.getInputAct();
+
+            if (currentAct.isFree(anim) || currentAct.cancellable)
+            {
+                //currentAct.play(anim, 0);
+                currentAct.setTrigger(anim);
+
+                anim.ResetTrigger(currentAct.animName);
+                //currentAct = currentAct.getInputAct();
+                if (currentAct != null)
+                {
+                    currentAct.setTrigger(anim);
+                    //currentAct.crossFadeLoop(anim);
+                    //currentAct.crossFadeLoop(anim);
+                    //currentAct.play(anim,0);
+                    //currentAct.setTrigger(anim);
+                }
+
+
+            }
+
+
+
+        }
+    }
+
+    public void updateRotation()
+    {
+        if (SimpInput.getIfHeld(runLeft.input))
+        {
+            right = false;
+        }
+
+        if (SimpInput.getIfHeld(runRight.input))
+        {
+            right = true;
+        }
+        setRotation();
+    }
+
+    public void setRotation()
+    {
+        if (right)
+        {
+            this.transform.rotation = new Quaternion(0, 0, 0, 0);
+        }
+        else
+        {
+            this.transform.rotation = new Quaternion(0, 180, 0, 0);
+        }
+    }
+
+    private void play(string name)
+    {
+        int mode = 1;
+        switch (mode)
+        {
+            case 0: anim.CrossFade(name, 0.2f); break;
+            case 1: anim.SetTrigger(name); break;
+
+        }
+
+    }
+
+    private void lockXPosition()
+    {
+
+    }
+
+    private IEnumerator lockControls(float waitTime)
+    {
+        lockedInAnimation = true;
+        yield return new WaitForSeconds(waitTime);
+        lockedInAnimation = false;
+
+    }
+
+    /*private IEnumerator lockControls(float waitTime)
+    {
+        lockedInAnimation = true;
+        yield return new WaitForSeconds(waitTime);
+        lockedInAnimation = false;
+
+    }*/
+
+}
+
+/*
+ 
+ using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class MainChar : MonoBehaviour
+{
+
+    public Animator anim;
+
+    Act currentAct;
+
+    //Acts
+    //Act walkLeft = new Act("walk", new string[] { "l" });
+    //Act walkRight = new Act("walk", new string[] { "r" });
+
+    Act runLeft = new Act("run", new string[] { "l" });
+    Act runRight = new Act("run", new string[] { "r" });
+
+    Act somersaultR = new Act("somersault", new string[] { "x", "r" });
+    Act somersaultL = new Act("somersault", new string[] { "x", "l" });
+
+    Act jump = new Act("jump", new string[] { "x" });
+
+    Act roll = new Act("roll");
+
+    public static Act idle = new Act("idle");
+
+    public bool right = true;
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        anim = GetComponent<Animator>();
+
+        idle.cancellable = true;
+
+        idle.allowedActs.Add(runLeft);
+        idle.allowedActs.Add(runRight);
+        idle.allowedActs.Add(somersaultL);
+        idle.allowedActs.Add(somersaultR);
+
+        runLeft.allowedActs.Add(somersaultL);
+        runLeft.allowedActs.Add(somersaultR);
+
+        runRight.allowedActs.Add(somersaultL);
+        runRight.allowedActs.Add(somersaultR);
+
+        somersaultR.allowedActs.Add(runRight);
+        somersaultR.allowedActs.Add(runLeft);
+
+        somersaultL.allowedActs.Add(runRight);
+        somersaultL.allowedActs.Add(runLeft);
+
+
+
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        if (SimpInput.getIfHeld(runLeft.input))
+        {
+            right = false;
+        }
+
+        if (SimpInput.getIfHeld(runRight.input))
+        {
+            right = true;
+        }
+
+        setRotation();
+
+        if (currentAct == null)
+        {
+            currentAct = idle;
+
+        }
+        else
+        {
+            //currentAct.crossFadeLoop(anim);
+            //currentAct.crossFadeLoop(anim);
+
+            if (currentAct.isFree(anim))
+            {
+                //currentAct.play(anim, 0);
+                
+
+            }else
+            if (currentAct.isFree(anim) || currentAct.cancellable)
+            {
+                
+                currentAct = currentAct.getInputAct();
+                if (currentAct != null)
+                {
+                    //currentAct.crossFadeLoop(anim);
+                    //currentAct.crossFadeLoop(anim);
+                    //currentAct.play(anim,0);
+                    currentAct.setTrigger(anim);
+                }
+            }
+
+
+        }
+    }
+
+    public void setRotation()
+    {
+        if (right)
+        {
+            this.transform.rotation = new Quaternion(0, 0, 0, 0);
+        }
+        else
+        {
+            this.transform.rotation = new Quaternion(0, 180, 0, 0);
+        }
+    }
+}
+
+ */
+
+
+//###################################16-03-2021
+/*
+ using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class MainChar : MonoBehaviour
+{
+
+    public Animator anim;
+
+    Act currentAct;
+
+    //Acts
+    //Act walkLeft = new Act("walk", new string[] { "l" });
+    //Act walkRight = new Act("walk", new string[] { "r" });
+
+    Act runLeft = new Act("run", new string[] { "l" });
+    Act runRight = new Act("run", new string[] { "r" });
+
+    Act somersaultR = new Act("somersault", new string[] { "x", "r" });
+    //Act somersaultR = new Act("somersault", new string[] { "x" });
+    Act somersaultL = new Act("somersault", new string[] { "x", "l" });
+    //Act somersaultL = new Act("somersault", new string[] { "x" });
+
+    Act jump = new Act("jump", new string[] { "x" });
+
+    Act roll = new Act("roll");
+
+    Act fs = new Act("fs");
+
+    public static Act idle = new Act("idle");
+
+    public bool right = true;
+    public bool air = false;
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        anim = GetComponent<Animator>();
+
+        idle.cancellable = true;
+
+        idle.allowedActs.Add(runLeft);
+        idle.allowedActs.Add(runRight);
+        idle.allowedActs.Add(somersaultL);
+        idle.allowedActs.Add(somersaultR);
+
+        runLeft.allowedActs.Add(somersaultL);
+        runLeft.allowedActs.Add(somersaultR);
+
+        runRight.allowedActs.Add(somersaultL);
+        runRight.allowedActs.Add(somersaultR);
+
+        somersaultR.allowedActs.Add(runRight);
+        somersaultR.allowedActs.Add(runLeft);
+
+        somersaultL.allowedActs.Add(runRight);
+        somersaultL.allowedActs.Add(runLeft);
+
+
+
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        //main();
+
+        updateRotation();
+
+        bool moving = SimpInput.getIfHeld(new string[] { "r" }) || SimpInput.getIfHeld(new string[] { "l" });
+        bool blocked = SimpInput.getIfPressed(new string[] { "l1" });
+        bool blocking = SimpInput.getIfHeld(new string[] { "l1" });
+
+
+
+        //movement
+        if (moving)
+        {
+            if (blocked)
+            {
+                //roll
+                if (roll.isFree(anim) && !air)
+                    anim.SetTrigger("roll");
+            }
+
+            if (somersaultL.isFree(anim))
+            {
+                air = false;
+                if (SimpInput.getIfPressed(new string[] { "x" }) && !air)
+                {
+                    anim.SetTrigger("somersault");
+                    air = true;
+                    //anim.CrossFade(somersaultL.animName, 0.05f, 0, 0);
+                    //somersaultL.crossFadeLoop(anim);
+                }
+                else
+                {
+                    anim.SetBool("run", true);
+                    //anim.CrossFade(runRight.animName, 0.05f, 0, 0);
+                    //runRight.crossFadeLoop(anim);
+                }
+            }
+
+        }
+        else
+        {
+
+            if (blocking)
+            {
+                //block
+            }
+
+            if (jump.isFree(anim))
+            {
+                air = false;
+                if (SimpInput.getIfPressed(new string[] { "x" }))
+                {
+                    anim.SetTrigger("jump");
+                    air = true;
+                    //anim.CrossFade(somersaultL.animName, 0.05f, 0, 0);
+                    //somersaultL.crossFadeLoop(anim);
+                }
+                else
+                {
+                    anim.SetBool("run", true);
+                    //anim.CrossFade(runRight.animName, 0.05f, 0, 0);
+                    //runRight.crossFadeLoop(anim);
+                }
+            }
+            anim.SetBool("run", false);
+
+        }
+
+        if (SimpInput.getIfPressed(new string[] { "t" }))
+        {
+
+            if (!somersaultL.isFree(anim)) //fs
+            {
+                anim.SetTrigger("fk");
+            }
+            else if (!jump.isFree(anim)) //heavy air 1
+            {
+
+            }
+
+
+
+
+        }
+
+
+    }
+
+    void main()
+    {
+        updateRotation();
+
+
+
+        if (currentAct == null)
+        {
+            currentAct = idle;
+            //currentAct.setTrigger(anim);
+        }
+        else
+        {
+            //currentAct.crossFadeLoop(anim);
+            //currentAct.crossFadeLoop(anim);
+            //currentAct = currentAct.getInputAct();
+
+            if (currentAct.isFree(anim) || currentAct.cancellable)
+            {
+                //currentAct.play(anim, 0);
+                currentAct.setTrigger(anim);
+
+                anim.ResetTrigger(currentAct.animName);
+                //currentAct = currentAct.getInputAct();
+                if (currentAct != null)
+                {
+                    currentAct.setTrigger(anim);
+                    //currentAct.crossFadeLoop(anim);
+                    //currentAct.crossFadeLoop(anim);
+                    //currentAct.play(anim,0);
+                    //currentAct.setTrigger(anim);
+                }
+
+
+            }
+
+
+
+        }
+    }
+
+    public void updateRotation()
+    {
+        if (SimpInput.getIfHeld(runLeft.input))
+        {
+            right = false;
+        }
+
+        if (SimpInput.getIfHeld(runRight.input))
+        {
+            right = true;
+        }
+        setRotation();
+    }
+
+    public void setRotation()
+    {
+        if (right)
+        {
+            this.transform.rotation = new Quaternion(0, 0, 0, 0);
+        }
+        else
+        {
+            this.transform.rotation = new Quaternion(0, 180, 0, 0);
+        }
+    }
+}
+ */

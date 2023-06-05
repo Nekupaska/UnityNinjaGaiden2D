@@ -1,0 +1,116 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class MainCharacter : MonoBehaviour
+{
+    public Animator anim;
+    //public List<Action> actions;
+
+    Action currentAction;
+
+    //actions
+    Action walkLeft = new Action("walk", new string[] { "l" });
+    Action walkRight = new Action("walk", new string[] { "r" });
+
+    Action runLeft = new Action("run", new string[] { "l" });
+    Action runRight = new Action("run", new string[] { "r" });
+
+    Action somersault = new Action("somersault", new string[] { "x" });
+
+    Action roll = new Action("walk");
+
+    Action idle = new Action("idle");
+
+
+
+    //states
+    public enum PhysicalStates { grounded, airborne, stagger }
+    public PhysicalStates physicalState;
+
+    public enum ActionStates { idle, walking, running, jumping, somersault, wallrunning }
+    public ActionStates actionState;
+    public bool blocking = false;
+
+    public bool right = true;
+
+    void Start()
+    {
+        anim = GetComponent<Animator>();
+
+        //actions = new List<Action>();
+
+        somersault.startOffset = 0.15f;
+        somersault.cancellable = true;
+
+
+
+
+    }
+
+
+    void Update()
+    {
+        if (!GLOBAL_VARIABLES.isPaused)
+        {
+            anim.speed = 1;
+            //if (Input.GetKeyDown(KeyCode.Space) && somersault.isFree(anim))
+            if (SimpInput.getIfPressed(somersault.input) && somersault.isFree(anim))
+            {
+                //physicalState = PhysicalStates.airborne;
+                somersault.play(anim, 0, -1);
+            }
+
+            if (somersault.isFree(anim))
+            {
+
+                //if (Input.GetKey("a") || Input.GetKey("d"))
+                if (SimpInput.getIfHeld(runLeft.input) || SimpInput.getIfHeld(runRight.input))
+                {
+
+                    //if (Input.GetKey("a"))
+                    if (SimpInput.getIfHeld(runLeft.input))
+                    {
+                        right = false;
+                    }
+
+                    //if (Input.GetKey("d"))
+                    if (SimpInput.getIfHeld(runRight.input))
+                    {
+                        right = true;
+                    }
+                    setRotation();
+
+                    //if (walk.isFree(anim))
+                    //runLeft.play(anim, 0.3f, 0);
+                    runLeft.playLoop(anim);
+
+                }
+                else //if (Input.GetKeyUp("a") || Input.GetKeyUp("d"))
+                {
+                    //idle.playLoop(anim);
+                    idle.crossFadeLoop(anim);
+                }
+
+            }
+        }
+        else
+        {
+            //pause everything
+            anim.speed = 0;
+        }
+
+    }
+
+    public void setRotation()
+    {
+        if (right)
+        {
+            this.transform.rotation = new Quaternion(0, 0, 0, 0);
+        }
+        else
+        {
+            this.transform.rotation = new Quaternion(0, 180, 0, 0);
+        }
+    }
+}

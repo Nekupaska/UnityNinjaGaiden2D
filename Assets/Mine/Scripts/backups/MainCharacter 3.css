@@ -1,0 +1,345 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class MainCharacter : MonoBehaviour
+{
+    public Animator anim;
+    public CharacterController con;
+    public Rigidbody rb;
+
+    public Vector3 velocity;
+    public float speed = 10;
+    //public List<Action> actions;
+
+    float normalCenter = 0.87f;
+    float normalHeight = 1.77f;
+
+    float jumpCenter = 1.79f;
+    float jumpHeight = 1.77f;
+
+
+    Action currentAction;
+
+    //actions
+    Action walkLeft = new Action("walk", new string[] { "l" });
+    Action walkRight = new Action("walk", new string[] { "r" });
+
+    Action runLeft = new Action("run", new string[] { "l" });
+    Action runRight = new Action("run", new string[] { "r" });
+
+    Action somersault = new Action("somersault", new string[] { "x" });
+
+    Action roll = new Action("walk");
+
+    Action idle = new Action("idle");
+
+
+
+    //states
+    public enum PhysicalStates { grounded, airborne, stagger }
+    public PhysicalStates physicalState;
+
+    public enum ActionStates { none, idle, walking, running, jumping, somersault, wallrunning }
+    public ActionStates actionState;
+    public bool blocking = false;
+
+    public bool right = true;
+
+    void Start()
+    {
+        anim = GetComponent<Animator>();
+        con = GetComponent<CharacterController>();
+        rb = GetComponent<Rigidbody>();
+        //rb.isKinematic = true;
+        //rb.useGravity = false;
+
+
+        //actions = new List<Action>();
+
+        somersault.startOffset = 0.15f;
+        somersault.cancellable = true;
+
+
+
+
+    }
+
+
+    void Update()
+    {
+        debug();
+
+        if (!GLOBAL_VARIABLES.isPaused)
+        {
+            anim.speed = 1;
+
+            if (SimpInput.getIfPressed(somersault.input) && somersault.isFree(anim))
+            {
+                //state: somersaulting
+                actionState = ActionStates.somersault;
+
+                //physicalState = PhysicalStates.airborne;
+                physicalState = PhysicalStates.airborne;
+                //somersault.play(anim, 0, -1);
+            }
+            else
+            {
+                //if(physicalState != PhysicalStates.airborne) { 
+                    actionState = ActionStates.none;
+                    physicalState = PhysicalStates.grounded;
+                //}
+            }
+
+            if (actionState != ActionStates.somersault || physicalState != PhysicalStates.airborne)
+                if (somersault.isFree(anim))
+                {
+
+                    if (SimpInput.getIfHeld(runLeft.input) || SimpInput.getIfHeld(runRight.input))
+                    {
+                        //state: running
+                        actionState = ActionStates.running;
+
+
+                        if (SimpInput.getIfHeld(runLeft.input))
+                        {
+                            right = false;
+                        }
+
+                        if (SimpInput.getIfHeld(runRight.input))
+                        {
+                            right = true;
+                        }
+                        //setRotation();
+                        //runLeft.playLoop(anim);
+
+                    }
+                    else
+                    {
+                        //state: idle
+                        actionState = ActionStates.idle;
+                        //idle.crossFadeLoop(anim);
+                    }
+
+                }
+        }
+        else
+        {
+            anim.speed = 0; //pause everything
+        }
+
+        doAnimation();
+        doPhysics();
+
+    }
+
+    void doAnimation()
+    {
+        switch (actionState)
+        {
+            case ActionStates.idle:
+                idle.crossFadeLoop(anim);
+                break;
+
+            case ActionStates.walking: break;
+
+            case ActionStates.running:
+                runLeft.playLoop(anim);
+                if (right)
+                {
+                    con.SimpleMove(Vector3.forward * speed);
+                    //rb.AddForce(Vector3.forward * 2);
+                }
+                else
+                {
+                    con.SimpleMove(Vector3.back * speed);
+                    //rb.AddForce(Vector3.back * 2);
+                }
+
+
+                break;
+
+            case ActionStates.jumping: break;
+
+            case ActionStates.somersault:
+                somersault.play(anim, 0, -1);
+
+                //rb.AddForce(Vector3.forward * 5);
+                //rb.AddForce(Vector3.up * 2);
+
+                break;
+        }
+
+        //setRotation();
+    }
+    void doPhysics()
+    {
+        print(actionState);
+        print(physicalState);
+        switch (physicalState)
+        {
+            case PhysicalStates.grounded:
+                break;
+            case PhysicalStates.airborne:
+                if (actionState == ActionStates.somersault)
+                {
+                    if (right)
+                    {
+                        con.SimpleMove(Vector3.forward * speed);
+                        //rb.AddForce(Vector3.forward * 2);
+                    }
+                    else
+                    {
+                        con.SimpleMove(Vector3.back * speed);
+                        //rb.AddForce(Vector3.back * 2);
+                    }
+                    print("hey");
+                }
+                break;
+            case PhysicalStates.stagger: break;
+        }
+        setRotation();
+
+
+
+    }
+
+    void debug()
+    {
+        velocity = rb.velocity;
+    }
+
+    public void setRotation()
+    {
+        if (right)
+        {
+            this.transform.rotation = new Quaternion(0, 0, 0, 0);
+        }
+        else
+        {
+            this.transform.rotation = new Quaternion(0, 180, 0, 0);
+        }
+    }
+}
+
+/*
+ using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class MainCharacter : MonoBehaviour
+{
+    public Animator anim;
+    public CharacterController con;
+
+    //public List<Action> actions;
+
+    Action currentAction;
+
+    //actions
+    Action walkLeft = new Action("walk", new string[] { "l" });
+    Action walkRight = new Action("walk", new string[] { "r" });
+
+    Action runLeft = new Action("run", new string[] { "l" });
+    Action runRight = new Action("run", new string[] { "r" });
+
+    Action somersault = new Action("somersault", new string[] { "x" });
+
+    Action roll = new Action("walk");
+
+    Action idle = new Action("idle");
+
+
+
+    //states
+    public enum PhysicalStates { grounded, airborne, stagger }
+    public PhysicalStates physicalState;
+
+    public enum ActionStates { idle, walking, running, jumping, somersault, wallrunning }
+    public ActionStates actionState;
+    public bool blocking = false;
+
+    public bool right = true;
+
+    void Start()
+    {
+        anim = GetComponent<Animator>();
+        con = GetComponent<CharacterController>();
+        //actions = new List<Action>();
+
+        somersault.startOffset = 0.15f;
+        somersault.cancellable = true;
+
+
+
+
+    }
+
+
+    void Update()
+    {
+        if (!GLOBAL_VARIABLES.isPaused)
+        {
+            anim.speed = 1;
+            //if (Input.GetKeyDown(KeyCode.Space) && somersault.isFree(anim))
+            if (SimpInput.getIfPressed(somersault.input) && somersault.isFree(anim))
+            {
+                //physicalState = PhysicalStates.airborne;
+                somersault.play(anim, 0, -1);
+            }
+
+            if (somersault.isFree(anim))
+            {
+
+                //if (Input.GetKey("a") || Input.GetKey("d"))
+                if (SimpInput.getIfHeld(runLeft.input) || SimpInput.getIfHeld(runRight.input))
+                {
+
+                    //if (Input.GetKey("a"))
+                    if (SimpInput.getIfHeld(runLeft.input))
+                    {
+                        right = false;
+                    }
+
+                    //if (Input.GetKey("d"))
+                    if (SimpInput.getIfHeld(runRight.input))
+                    {
+                        right = true;
+                    }
+                    setRotation();
+
+                    //if (walk.isFree(anim))
+                    //runLeft.play(anim, 0.3f, 0);
+                    runLeft.playLoop(anim);
+
+                }
+                else //if (Input.GetKeyUp("a") || Input.GetKeyUp("d"))
+                {
+                    //idle.playLoop(anim);
+                    idle.crossFadeLoop(anim);
+                }
+
+            }
+        }
+        else
+        {
+            //pause everything
+            anim.speed = 0;
+        }
+
+    }
+
+    public void setRotation()
+    {
+        if (right)
+        {
+            this.transform.rotation = new Quaternion(0, 0, 0, 0);
+        }
+        else
+        {
+            this.transform.rotation = new Quaternion(0, 180, 0, 0);
+        }
+    }
+}
+
+ */
